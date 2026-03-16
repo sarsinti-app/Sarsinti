@@ -9,3 +9,48 @@ body {
   color: #e6edf3;
   font-family: 'Segoe UI', sans-serif;
 }
+
+.sonar-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 0;
+  height: 0;
+}
+
+.sonar-ring {
+  position: absolute;
+  border-radius: 50%;
+  border: 2px solid var(--color);
+  transform: translate(-50%, -50%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sonar-ring-1 {
+  width: 40px;
+  height: 40px;
+  animation: sonar 2.4s ease-out infinite 0s;
+}
+
+.sonar-ring-2 {
+  width: 40px;
+  height: 40px;
+  animation: sonar 2.4s ease-out infinite 0.8s;
+}
+
+.sonar-ring-3 {
+  width: 40px;
+  height: 40px;
+  animation: sonar 2.4s ease-out infinite 1.6s;
+}
+
+@keyframes sonar {
+  0% {
+    transform: translate(-50%, -50%) scale(0.3);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(6);
+    opacity: 0;
+  }
+}

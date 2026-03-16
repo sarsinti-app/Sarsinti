@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 
-const USGS_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=NOW-30DAYS&minlatitude=36&maxlatitude=42&minlongitude=26&maxlongitude=45&minmagnitude=1'
-
+const USGS_URL = 'https://earthquake.usgs.gov/fdsnws/event/1/query?format=geojson&starttime=NOW-30DAYS&minlatitude=36&maxlatitude=42&minlongitude=26&maxlongitude=45&minmagnitude=0'
 function useEarthquakes() {
   const [earthquakes, setEarthquakes] = useState([])
   const [loading, setLoading] = useState(true)
