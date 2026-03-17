@@ -5,6 +5,8 @@ import Sidebar from './Sidebar'
 import useEarthquakes from './useEarthquakes'
 
 function App() {
+ 
+
   const { earthquakes, loading } = useEarthquakes()
   const [minMag, setMinMag] = useState(0)
   const [selected, setSelected] = useState(null)
