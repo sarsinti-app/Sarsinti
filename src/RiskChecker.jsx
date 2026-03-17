@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { calculateRisk, getRiskAdvice } from './riskEngine'
 import { getBuildingData, getDaskPremium, getSeismicZone, inferBuildingData } from './geocoding'
+import translations from './translations'
 
 function ScoreRing({ score, color }) {
   const r = 28
@@ -21,11 +22,12 @@ function ScoreRing({ score, color }) {
   )
 }
 
-function ConfidenceBadge({ level }) {
+function ConfidenceBadge({ level, lang }) {
+  const t = translations[lang] || translations['en']
   const config = {
-    official: { label: 'Official data', bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
-    estimated: { label: 'Estimated', bg: 'rgba(249,115,22,0.15)', color: '#f97316' },
-    pending: { label: 'Partnership pending', bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
+    official: { label: t.officialData, bg: 'rgba(34,197,94,0.15)', color: '#22c55e' },
+    estimated: { label: t.estimated, bg: 'rgba(249,115,22,0.15)', color: '#f97316' },
+    pending: { label: t.partnershipPending, bg: 'rgba(139,148,158,0.15)', color: '#8b949e' },
   }
   const c = config[level] || config.pending
   return (
@@ -38,7 +40,7 @@ function ConfidenceBadge({ level }) {
   )
 }
 
-function DataRow({ label, value, confidence }) {
+function DataRow({ label, value, confidence, lang }) {
   return (
     <div style={{
       display: 'flex', justifyContent: 'space-between', alignItems: 'center',
@@ -47,25 +49,24 @@ function DataRow({ label, value, confidence }) {
       <span style={{ fontSize: '12px', color: '#8b949e' }}>{label}</span>
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
         <span style={{ fontSize: '12px', color: '#e6edf3', fontWeight: 500 }}>{value}</span>
-        <ConfidenceBadge level={confidence} />
+        <ConfidenceBadge level={confidence} lang={lang} />
       </div>
     </div>
   )
 }
 
-function AddressSearch({ onSelect }) {
+function AddressSearch({ onSelect, lang }) {
   const containerRef = useRef(null)
+  const t = translations[lang] || translations['en']
 
   useEffect(() => {
     const container = containerRef.current
     if (!window.google || !container) return
-
     container.innerHTML = ''
 
     const element = new window.google.maps.places.PlaceAutocompleteElement({
       componentRestrictions: { country: 'tr' },
     })
-
     element.style.width = '100%'
     container.appendChild(element)
 
@@ -76,8 +77,7 @@ function AddressSearch({ onSelect }) {
         await place.fetchFields({
           fields: ['displayName', 'formattedAddress', 'location', 'addressComponents']
         })
-        const components = place.addressComponents || []
-        const mapped = components.map(c => ({
+        const components = (place.addressComponents || []).map(c => ({
           long_name: c.longText || c.long_name || '',
           short_name: c.shortText || c.short_name || '',
           types: c.types || []
@@ -86,7 +86,7 @@ function AddressSearch({ onSelect }) {
           name: place.formattedAddress || place.displayName,
           lat: place.location.lat(),
           lng: place.location.lng(),
-          components: mapped
+          components
         })
       } catch (err) {
         console.error('Place select error:', err)
@@ -107,13 +107,14 @@ function AddressSearch({ onSelect }) {
     <div style={{ marginBottom: '12px' }}>
       <div ref={containerRef} style={{ width: '100%', marginBottom: '6px' }} />
       <div style={{ fontSize: '11px', color: '#8b949e' }}>
-        Start typing — select a specific address from the dropdown
+        {t.searchHint}
       </div>
     </div>
   )
 }
 
-function RiskChecker({ earthquakes }) {
+function RiskChecker({ earthquakes, lang = 'en' }) {
+  const t = translations[lang] || translations['en']
   const [loading, setLoading] = useState(false)
   const [risk, setRisk] = useState(null)
   const [building, setBuilding] = useState(null)
@@ -146,13 +147,11 @@ function RiskChecker({ earthquakes }) {
     setRisk(riskResult)
 
     let buildingData = await getBuildingData(r.lat, r.lng)
-
     if (!buildingData || (!buildingData.year && !buildingData.levels && !buildingData.material)) {
       buildingData = inferBuildingData(r.components || [], r.name)
     } else {
       buildingData.confidence = 'official'
     }
-
     setBuilding(buildingData)
 
     const zone = getSeismicZone(r.lat, r.lng)
@@ -172,29 +171,33 @@ function RiskChecker({ earthquakes }) {
     setAddress('')
   }
 
+  const riskLabel = risk
+    ? risk.score >= 70 ? t.highRisk
+      : risk.score >= 40 ? t.moderateRisk
+        : t.lowRisk
+    : ''
+
   return (
     <div style={{ padding: '16px' }}>
       <div style={{
         fontSize: '11px', color: '#8b949e', textTransform: 'uppercase',
         letterSpacing: '0.5px', fontWeight: 600, marginBottom: '12px'
       }}>
-        Property risk checker
+        {t.propertyRisk}
       </div>
 
       {!risk && !loading && (
         <div>
-          <div style={{
-            fontSize: '12px', color: '#8b949e',
-            marginBottom: '12px', lineHeight: 1.6
-          }}>
-            Type any Turkey address, estate name, street or postcode
-            for a full seismic risk assessment.
+          <div style={{ fontSize: '12px', color: '#8b949e', marginBottom: '12px', lineHeight: 1.6 }}>
+            {lang === 'tr'
+              ? 'Tam sismik risk değerlendirmesi için Türkiye adresi, site adı, sokak veya posta kodu girin.'
+              : 'Type any Turkey address, estate name, street or postcode for a full seismic risk assessment.'}
           </div>
           {googleReady ? (
-            <AddressSearch onSelect={selectLocation} />
+            <AddressSearch onSelect={selectLocation} lang={lang} />
           ) : (
             <div style={{ fontSize: '12px', color: '#8b949e' }}>
-              Loading address search...
+              {lang === 'tr' ? 'Adres arama yükleniyor...' : 'Loading address search...'}
             </div>
           )}
         </div>
@@ -202,12 +205,8 @@ function RiskChecker({ earthquakes }) {
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '24px 0' }}>
-          <div style={{ fontSize: '13px', color: '#8b949e' }}>
-            Analysing property...
-          </div>
-          <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>
-            Checking fault lines, seismic activity and building data
-          </div>
+          <div style={{ fontSize: '13px', color: '#8b949e' }}>{t.analysingProperty}</div>
+          <div style={{ fontSize: '11px', color: '#8b949e', marginTop: '4px' }}>{t.checkingData}</div>
         </div>
       )}
 
@@ -228,13 +227,13 @@ function RiskChecker({ earthquakes }) {
             <ScoreRing score={risk.score} color={risk.color} />
             <div>
               <div style={{ fontSize: '20px', fontWeight: 700, color: risk.color }}>
-                {risk.label} risk
+                {riskLabel}
               </div>
               <div style={{ fontSize: '12px', color: '#8b949e', marginTop: '2px' }}>
-                Score: {risk.score}/100
+                {lang === 'tr' ? 'Puan' : 'Score'}: {risk.score}/100
               </div>
               <div style={{ fontSize: '12px', color: '#8b949e' }}>
-                {risk.faultDistance}km from {risk.nearestFault}
+                {risk.faultDistance}{t.kmFromFault} {risk.nearestFault}
               </div>
             </div>
           </div>
@@ -244,12 +243,12 @@ function RiskChecker({ earthquakes }) {
               fontSize: '11px', color: '#8b949e', marginBottom: '6px',
               textTransform: 'uppercase', letterSpacing: '0.5px'
             }}>
-              Score breakdown
+              {t.scoreBreakdown}
             </div>
             {[
-              ['Fault proximity', risk.breakdown.fault, 40],
-              ['Recent seismic activity', risk.breakdown.activity, 40],
-              ['Regional hazard zone', risk.breakdown.regional, 20],
+              [t.faultProximity, risk.breakdown.fault, 40],
+              [t.recentActivity, risk.breakdown.activity, 40],
+              [t.regionalHazard, risk.breakdown.regional, 20],
             ].map(([label, val, max]) => (
               <div key={label} style={{ marginBottom: '7px' }}>
                 <div style={{
@@ -275,36 +274,21 @@ function RiskChecker({ earthquakes }) {
               fontSize: '11px', color: '#8b949e', marginBottom: '8px',
               textTransform: 'uppercase', letterSpacing: '0.5px'
             }}>
-              Building data
+              {t.buildingData}
             </div>
             <div style={{
               background: '#161b22', borderRadius: '8px',
               padding: '4px 12px', marginBottom: '8px'
             }}>
+              <DataRow label={t.constructionEra} value={building?.year || (lang === 'tr' ? 'Bilinmiyor' : 'Unknown')} confidence={building?.confidence || 'pending'} lang={lang} />
+              <DataRow label={t.buildingType} value={building?.type || (lang === 'tr' ? 'Bilinmiyor' : 'Unknown')} confidence={building?.confidence || 'pending'} lang={lang} />
+              <DataRow label={t.floors} value={building?.levels || (lang === 'tr' ? 'Bilinmiyor' : 'Unknown')} confidence={building?.confidence || 'pending'} lang={lang} />
+              <DataRow label={t.material} value={building?.material || (lang === 'tr' ? 'Bilinmiyor' : 'Unknown')} confidence={building?.confidence || 'pending'} lang={lang} />
               <DataRow
-                label="Construction era"
-                value={building?.year || 'Unknown'}
-                confidence={building?.confidence || 'pending'}
-              />
-              <DataRow
-                label="Building type"
-                value={building?.type || 'Unknown'}
-                confidence={building?.confidence || 'pending'}
-              />
-              <DataRow
-                label="Floors"
-                value={building?.levels || 'Unknown'}
-                confidence={building?.confidence || 'pending'}
-              />
-              <DataRow
-                label="Material"
-                value={building?.material || 'Unknown'}
-                confidence={building?.confidence || 'pending'}
-              />
-              <DataRow
-                label="Data source"
-                value={building?.source || 'Unknown'}
+                label={t.dataSource}
+                value={building?.source || (lang === 'tr' ? 'Bilinmiyor' : 'Unknown')}
                 confidence={building?.source === 'OpenStreetMap' ? 'official' : 'estimated'}
+                lang={lang}
               />
             </div>
 
@@ -315,9 +299,7 @@ function RiskChecker({ earthquakes }) {
                 borderRadius: '6px', border: '1px solid rgba(239,68,68,0.3)',
                 fontSize: '12px', color: '#ef4444', lineHeight: 1.5
               }}>
-                This building likely predates Turkey's 1999 seismic building
-                code update. A professional structural assessment is strongly
-                recommended before purchase.
+                {t.pre1999Warning}
               </div>
             )}
 
@@ -328,8 +310,7 @@ function RiskChecker({ earthquakes }) {
                 borderRadius: '6px', border: '1px solid rgba(34,197,94,0.2)',
                 fontSize: '12px', color: '#22c55e', lineHeight: 1.5
               }}>
-                Residential estate (sitesi) — typically built to modern
-                standards with reinforced concrete construction.
+                {t.sitesiNote}
               </div>
             )}
 
@@ -340,8 +321,7 @@ function RiskChecker({ earthquakes }) {
                 borderRadius: '6px', border: '1px solid rgba(34,197,94,0.2)',
                 fontSize: '12px', color: '#22c55e', lineHeight: 1.5
               }}>
-                Modern residential development — likely built to current
-                Turkish seismic building code (TBDY 2018).
+                {t.newDevNote}
               </div>
             )}
 
@@ -352,11 +332,9 @@ function RiskChecker({ earthquakes }) {
               fontSize: '11px', color: '#8b949e', lineHeight: 1.6
             }}>
               <span style={{ color: '#e6edf3', fontWeight: 600 }}>
-                Full building specification
+                {lang === 'tr' ? 'Tam bina özellikleri' : 'Full building specification'}
               </span>
-              {' '}including DASK insurance history, construction permits
-              and structural assessments available via DASK/TKGM data
-              partnership — coming soon.
+              {' '}{t.partnershipNote}
             </div>
           </div>
 
@@ -366,40 +344,32 @@ function RiskChecker({ earthquakes }) {
                 fontSize: '11px', color: '#8b949e', marginBottom: '8px',
                 textTransform: 'uppercase', letterSpacing: '0.5px'
               }}>
-                DASK insurance estimate
+                {t.daskEstimate}
               </div>
-              <div style={{
-                background: '#161b22', borderRadius: '8px', padding: '12px'
-              }}>
+              <div style={{ background: '#161b22', borderRadius: '8px', padding: '12px' }}>
                 <div style={{
                   display: 'flex', justifyContent: 'space-between',
                   alignItems: 'center', marginBottom: '8px'
                 }}>
                   <div>
-                    <div style={{ fontSize: '10px', color: '#8b949e' }}>
-                      Est. annual premium (100m²)
-                    </div>
+                    <div style={{ fontSize: '10px', color: '#8b949e' }}>{t.annualPremium}</div>
                     <div style={{ fontSize: '18px', fontWeight: 700, color: '#e6edf3' }}>
                       ₺{dask.annualPremium.toLocaleString()}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '10px', color: '#8b949e' }}>
-                      Seismic zone
-                    </div>
+                    <div style={{ fontSize: '10px', color: '#8b949e' }}>{t.seismicZone}</div>
                     <div style={{ fontSize: '18px', fontWeight: 700, color: risk.color }}>
-                      Zone {dask.zone}
+                      {lang === 'tr' ? 'Bölge' : 'Zone'} {dask.zone}
                     </div>
                   </div>
                 </div>
-                <div style={{
-                  fontSize: '10px', color: '#8b949e',
-                  lineHeight: 1.5, marginBottom: '6px'
-                }}>
-                  Based on TCIP 2026 tariff rates. Actual premium depends
-                  on exact construction type and floor area.
+                <div style={{ fontSize: '10px', color: '#8b949e', lineHeight: 1.5, marginBottom: '6px' }}>
+                  {lang === 'tr'
+                    ? 'TCIP 2026 tarife oranlarına göre. Gerçek prim inşaat türüne ve alana bağlıdır.'
+                    : 'Based on TCIP 2026 tariff rates. Actual premium depends on exact construction type and floor area.'}
                 </div>
-                <ConfidenceBadge level="estimated" />
+                <ConfidenceBadge level="estimated" lang={lang} />
               </div>
             </div>
           )}
@@ -409,7 +379,7 @@ function RiskChecker({ earthquakes }) {
               fontSize: '11px', color: '#8b949e', marginBottom: '6px',
               textTransform: 'uppercase', letterSpacing: '0.5px'
             }}>
-              Recommendations
+              {t.recommendations}
             </div>
             {getRiskAdvice(risk.score).map((tip, i) => (
               <div key={i} style={{
@@ -422,23 +392,18 @@ function RiskChecker({ earthquakes }) {
             ))}
           </div>
 
-          <button
-            onClick={reset}
-            style={{
-              width: '100%', padding: '8px', borderRadius: '6px',
-              border: '1px solid #30363d', background: 'transparent',
-              color: '#8b949e', cursor: 'pointer', fontSize: '12px'
-            }}
-          >
-            Check another address
+          <button onClick={reset} style={{
+            width: '100%', padding: '8px', borderRadius: '6px',
+            border: '1px solid #30363d', background: 'transparent',
+            color: '#8b949e', cursor: 'pointer', fontSize: '12px'
+          }}>
+            {t.checkAnother}
           </button>
 
-          <div style={{
-            fontSize: '10px', color: '#8b949e',
-            marginTop: '10px', lineHeight: 1.5
-          }}>
-            Based on fault proximity, seismic activity and AFAD hazard zones.
-            Not a substitute for professional structural assessment.
+          <div style={{ fontSize: '10px', color: '#8b949e', marginTop: '10px', lineHeight: 1.5 }}>
+            {lang === 'tr'
+              ? 'Fay hattı yakınlığı, sismik aktivite ve AFAD tehlike bölgelerine dayanmaktadır. Profesyonel yapısal değerlendirmenin yerini tutmaz.'
+              : 'Based on fault proximity, seismic activity and AFAD hazard zones. Not a substitute for professional structural assessment.'}
           </div>
         </div>
       )}

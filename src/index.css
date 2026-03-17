@@ -54,3 +54,9 @@ body {
     opacity: 0;
   }
 }
+@media (max-width: 768px) {
+  .sidebar-desktop { display: none !important; }
+  .map-wrapper { padding-left: 0 !important; }
+  .header-meta { display: none !important; }
+  .menu-btn { display: block !important; }
+}
